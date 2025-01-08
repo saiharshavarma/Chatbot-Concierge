@@ -1,11 +1,11 @@
 var checkout = {};
 
-$(document).ready(function() {
+$(document).ready(function () {
   var $messages = $('.messages-content'),
     d, h, m,
     i = 0;
 
-  $(window).load(function() {
+  $(window).load(function () {
     $messages.mCustomScrollbar();
     insertResponseMessage('Hi there, I\'m your personal Concierge. How can I help?');
   });
@@ -18,7 +18,7 @@ $(document).ready(function() {
   }
 
   function setDate() {
-    d = new Date()
+    d = new Date();
     if (m != d.getMinutes()) {
       m = d.getMinutes();
       $('<div class="timestamp">' + d.getHours() + ':' + m + '</div>').appendTo($('.message:last'));
@@ -26,8 +26,9 @@ $(document).ready(function() {
   }
 
   function callChatbotApi(message) {
-    // params, body, additionalParams
-    return sdk.chatbotPost({}, {
+    // Create the API client and call the chatbot API
+    var apigClient = apigClientFactory.newClient();
+    return apigClient.chatbotPost({}, {
       messages: [{
         type: 'unstructured',
         unstructured: {
@@ -38,8 +39,8 @@ $(document).ready(function() {
   }
 
   function insertMessage() {
-    msg = $('.message-input').val();
-    if ($.trim(msg) == '') {
+    var msg = $('.message-input').val();
+    if ($.trim(msg) === '') {
       return false;
     }
     $('<div class="message message-personal">' + msg + '</div>').appendTo($('.mCSB_container')).addClass('new');
@@ -47,62 +48,48 @@ $(document).ready(function() {
     $('.message-input').val(null);
     updateScrollbar();
 
-    callChatbotApi(msg)
-      .then((response) => {
-        console.log(response);
-        var data = response.data;
+    callChatbotApi(msg).then((response) => {
+      console.log('User message:', msg, 'Response:', response);
+      
+      // Parse the body if it's stringified
+      var responseBody = response.data.body ? JSON.parse(response.data.body) : response.data;
 
-        if (data.messages && data.messages.length > 0) {
-          console.log('received ' + data.messages.length + ' messages');
+      if (responseBody.messages && responseBody.messages.length > 0) {
+        console.log('Received ' + responseBody.messages.length + ' messages from chatbot.');
 
-          var messages = data.messages;
-
-          for (var message of messages) {
-            if (message.type === 'unstructured') {
-              insertResponseMessage(message.unstructured.text);
-            } else if (message.type === 'structured' && message.structured.type === 'product') {
-              var html = '';
-
-              insertResponseMessage(message.structured.text);
-
-              setTimeout(function() {
-                html = '<img src="' + message.structured.payload.imageUrl + '" witdth="200" height="240" class="thumbnail" /><b>' +
-                  message.structured.payload.name + '<br>$' +
-                  message.structured.payload.price +
-                  '</b><br><a href="#" onclick="' + message.structured.payload.clickAction + '()">' +
-                  message.structured.payload.buttonLabel + '</a>';
-                insertResponseMessage(html);
-              }, 1100);
-            } else {
-              console.log('not implemented');
-            }
+        var messages = responseBody.messages;
+        for (var message of messages) {
+          if (message.type === 'unstructured') {
+            insertResponseMessage(message.unstructured.text);
+          } else {
+            console.log('Unsupported message type:', message.type);
           }
-        } else {
-          insertResponseMessage('Oops, something went wrong. Please try again.');
         }
-      })
-      .catch((error) => {
-        console.log('an error occurred', error);
+      } else {
         insertResponseMessage('Oops, something went wrong. Please try again.');
-      });
+      }
+    }).catch((error) => {
+      console.error('An error occurred:', error);
+      insertResponseMessage('Oops, something went wrong. Please try again.');
+    });
   }
 
-  $('.message-submit').click(function() {
+  $('.message-submit').click(function () {
     insertMessage();
   });
 
-  $(window).on('keydown', function(e) {
-    if (e.which == 13) {
+  $(window).on('keydown', function (e) {
+    if (e.which === 13) {
       insertMessage();
       return false;
     }
-  })
+  });
 
   function insertResponseMessage(content) {
     $('<div class="message loading new"><figure class="avatar"><img src="https://media.tenor.com/images/4c347ea7198af12fd0a66790515f958f/tenor.gif" /></figure><span></span></div>').appendTo($('.mCSB_container'));
     updateScrollbar();
 
-    setTimeout(function() {
+    setTimeout(function () {
       $('.message.loading').remove();
       $('<div class="message new"><figure class="avatar"><img src="https://media.tenor.com/images/4c347ea7198af12fd0a66790515f958f/tenor.gif" /></figure>' + content + '</div>').appendTo($('.mCSB_container')).addClass('new');
       setDate();
@@ -110,5 +97,4 @@ $(document).ready(function() {
       i++;
     }, 500);
   }
-
 });
